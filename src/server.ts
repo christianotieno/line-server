@@ -1,47 +1,55 @@
 import express from "express";
-import fs from "fs";
+import { FileHandler } from "./handlers/fileHandler";
 
-const app = express();
-const port = 3000;
+export class Server {
+  private app: express.Express;
+  private port: number;
+  private server: any;
 
-let server: any;
+  constructor(port: number) {
+    this.app = express();
+    this.port = port;
 
-app.get("/lines/:index", (req, res) => {
-  const index = parseInt(req.params.index);
-  const file = fs.query.file as string;
+    this.app.get("/lines/:index", this.handleLinesRequest.bind(this));
 
-  const readStream = fs.createReadStream(file, { encoding: "utf8" });
+    this.server = this.app.listen(this.port, () => {
+      console.log(`Server listening on port ${this.port}`);
+    });
 
-  let currentLine = 0;
-  readStream.on("data", (chunk) => {
-    for (let i = 0; i < chunk.length; i++) {
-      if (chunk[i] === "\n") {
-        currentLine++;
-        if (currentLine === index) {
-          const line = chunk.slice(0, i);
-          readStream.close();
-          res.status(200).send(line);
-          return;
-        }
-      }
+    process.on("SIGINT", this.gracefulShutdown.bind(this));
+  }
+
+  private async handleLinesRequest(
+    req: express.Request,
+    res: express.Response,
+  ) {
+    const index = parseInt(req.params.index);
+    const file = req.query.file as string;
+
+    try {
+      const line = await FileHandler.readLine(file, index);
+      res.status(200).send(line);
+    } catch (err) {
+      res
+        .status(413)
+        .send("Requested line number is beyond the end of the file.");
     }
-  });
+  }
 
-  readStream.on("end", () => {
-    res
-      .status(413)
-      .send("Requested line number is beyond the end of the file.");
-  });
-});
+  private gracefulShutdown() {
+    console.log("Shutting down server...");
+    this.server.close(() => {
+      console.log("Closed out remaining connections.");
+      process.exit(0);
+    });
 
-server = app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
+    setTimeout(() => {
+      console.error(
+        "Could not close connections in time, forcefully shutting down",
+      );
+      process.exit(1);
+    }, 10000);
+  }
+}
 
-process.on("SIGINT", () => {
-  console.log("Shutting down server...");
-  server.close(() => {
-    console.log("Server gracefully shut down.");
-    process.exit(0);
-  });
-});
+new Server(3000);
