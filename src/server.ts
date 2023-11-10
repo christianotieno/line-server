@@ -4,6 +4,8 @@ import fs from "fs";
 const app = express();
 const port = 3000;
 
+let server: any;
+
 app.get("/lines/:index", (req, res) => {
   const index = parseInt(req.params.index);
   const file = fs.query.file as string;
@@ -32,6 +34,14 @@ app.get("/lines/:index", (req, res) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
+server = app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
+});
+
+process.on("SIGINT", () => {
+  console.log("Shutting down server...");
+  server.close(() => {
+    console.log("Server gracefully shut down.");
+    process.exit(0);
+  });
 });
