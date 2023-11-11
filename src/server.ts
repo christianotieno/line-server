@@ -28,11 +28,9 @@ export class Server {
 
     try {
       const line = await FileHandler.readLine(file, index);
-      res.status(200).send(line);
+      res.status(200).send(`Requested line: ${line}`);
     } catch (err) {
-      res
-        .status(413)
-        .send("Requested line number is beyond the end of the file.");
+      res.status(413).send(err);
     }
   }
 

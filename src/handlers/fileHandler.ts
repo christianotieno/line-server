@@ -4,21 +4,24 @@ export class FileHandler {
   static readLine(filePath: string, lineNumber: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const readStream = fs.createReadStream(filePath, { encoding: "utf8" });
-
+      let buffer = "";
       let currentLine = 0;
-    readStream.on("data", (chunk: string | any[]) => {
+      let lineFound = false;
+
+      readStream.on("data", (chunk: string | any[]) => {
+        const chuckWithBuffer = buffer + chunk;
+        const lines = chuckWithBuffer.split("\n");
+
         for (let i = 0; i < chunk.length; i++) {
-            if (chunk[i] === "\n") {
-                currentLine++;
-                if (currentLine === lineNumber) {
-                    const line = chunk.slice(0, i);
-                    readStream.close();
-                    resolve(line.toString());
-                    return;
-                }
-            }
+          if (currentLine === lineNumber) {
+            resolve(lines[i]);
+            lineFound = true;
+            break;
+          }
+          currentLine++;
         }
-    });
+        buffer = lines[lines.length - 1];
+      });
 
       readStream.on("end", () => {
         reject("Requested line is beyond the end of the file.");
